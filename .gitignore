@@ -1,0 +1,44 @@
+# ── Secrets — NEVER commit ─────────────────────────────
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets/
+**/apikey*
+**/api_key*
+
+# ── Personal data stores — NEVER commit ────────────────
+# Your actual Obsidian vault and memory stores are private.
+vault/
+Vault/
+ObsidianVault/
+data/
+chromadb*/
+*.chromadb/
+memory/            # per-project fact files are personal; ship examples only
+hook_state.json
+
+# ── Python ─────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ── Node ───────────────────────────────────────────────
+node_modules/
+
+# ── Generated graph artifacts ──────────────────────────
+graphify-out/
+.code-review-graph/
+
+# ── OS / editor ────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
