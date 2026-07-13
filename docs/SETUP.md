@@ -10,7 +10,7 @@ Prefer to let your agent do it? See **[AGENTIC_SETUP.md](AGENTIC_SETUP.md)**. Or
 
 ## 1. Clone + install
 ```bash
-git clone https://github.com/jushayden/claude-code-cache-engine claude-brain
+git clone https://github.com/jushayden/claude-code-memory-cache claude-brain
 cd claude-brain
 pip install -r requirements.txt          # memory server deps (chromadb, mcp)
 ```

@@ -1,4 +1,4 @@
-# Claude Code Cache Engine
+# Claude Code Memory Cache
 
 **Persistent, token-efficient memory for Claude Code.** Give the agent a memory that survives across sessions, projects, and machines — a "cache" for everything it should remember between runs, so it stops forgetting what you told it last week and stops re-reading your whole codebase to answer *"where is X used?"*
 
@@ -19,8 +19,8 @@ The result: continuity across sessions, and much lower token use (see [docs/TOKE
 ## Quickstart
 
 ```bash
-git clone https://github.com/jushayden/claude-code-cache-engine
-cd claude-code-cache-engine
+git clone https://github.com/jushayden/claude-code-memory-cache
+cd claude-code-memory-cache
 pip install -r requirements.txt
 python install.py            # guided: deps check, config, snippets to merge, vault seeding
 ```

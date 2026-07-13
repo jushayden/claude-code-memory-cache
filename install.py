@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Guided setup for Claude Code Cache Engine.
+"""Guided setup for Claude Code Memory Cache.
 
 Does the safe, automatable parts (prereq check, deps, config, vault seeding) and PRINTS the
 snippets you merge into your own ~/.claude config — it deliberately does NOT silently edit
