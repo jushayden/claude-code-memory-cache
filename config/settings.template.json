@@ -1,0 +1,56 @@
+{
+  "_README": "Claude Brain hooks + a minimal permission set. Replace <CLAUDE_BRAIN_PATH> with the absolute path where you cloned this repo, and make sure `python`, `graphify`, and `code-review-graph` are on your PATH. MERGE this into your existing ~/.claude/settings.json — do not blindly overwrite. On Windows you may need to swap `2>/dev/null` for `2>NUL` in the hook commands.",
+
+  "permissions": {
+    "allow": [
+      "mcp__memory__*",
+      "mcp__code-review-graph__*",
+      "mcp__obsidian-vault__*",
+      "Read",
+      "Grep",
+      "Glob",
+      "WebFetch",
+      "WebSearch",
+      "Bash(git *)",
+      "Bash(python *)",
+      "Bash(pip *)",
+      "Bash(code-review-graph *)"
+    ]
+  },
+
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|Bash",
+        "hooks": [
+          { "type": "command", "command": "python -c \"from graphify.watch import _rebuild_code; from pathlib import Path; _rebuild_code(Path('.'))\"", "timeout": 30 },
+          { "type": "command", "command": "[ -d .git ] && code-review-graph update --skip-flows 2>/dev/null || true", "timeout": 30 }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "code-review-graph status 2>/dev/null || true", "timeout": 10 }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Glob|Grep",
+        "hooks": [
+          { "type": "command", "command": "[ -f graphify-out/graph.json ] && echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"A code graph exists — read graphify-out/GRAPH_REPORT.md before searching raw files.\"}}' || true" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "python <CLAUDE_BRAIN_PATH>/memory_server/auto_log_from_jsonl.py 2>/dev/null || true", "timeout": 30 }
+        ]
+      }
+    ]
+  }
+}

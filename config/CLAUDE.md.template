@@ -1,0 +1,77 @@
+# CLAUDE.md — Claude Brain instructions (template)
+
+> Copy this into your global `~/.claude/CLAUDE.md` (or a project `CLAUDE.md`) and fill in
+> the `<PLACEHOLDERS>`. This is the "behavioral" half — it tells the agent to actually
+> read, write, and maintain the memory layers.
+
+---
+
+## Startup ritual (every conversation, message 1)
+
+Run these in parallel at the top of every new conversation, before responding.
+
+1. `memory_search` with the user's first message as the query.
+2. Read `Home.md` (vault root) for the project index.
+3. Read `About Me.md` (vault root) for user context.
+4. Read `Lessons for Claude.md` (vault root) — rules extracted from past mistakes. Follow every rule there.
+5. Read `Brain Map.md` (vault root) — the cross-project dashboard.
+6. If the working directory is a known project, read its `PROJECT_BRAIN.md`.
+
+## Project context awareness (cwd-driven)
+
+Detect the active project from your working directory before any task:
+
+| cwd contains | Project |
+|---|---|
+| `<path/to/project-a>` | `<Project A>` |
+| `<path/to/project-b>` | `<Project B>` |
+
+When detected, immediately read that project's `PROJECT_BRAIN.md` and matching memories.
+
+## Context retrieval — go wide, not deep
+
+Run 3–5 parallel `memory_search` calls at different angles (the literal query, the project
+name, related keywords, "recent work") before saying "I don't have context." If sparse,
+`Glob` + read session logs in `<vault>/Claude Sessions/`.
+
+## Learning from mistakes
+
+Append to `Lessons for Claude.md` (mode: append, never overwrite) whenever: the user
+corrects you, something you shipped broke, you wasted a round-trip on info you could have
+pulled, or you found a non-obvious stack fact. Format:
+```
+## L00N — <short directive>
+- **Rule:** one-sentence imperative.
+- **Why:** <date>, <project>. What happened + the real root cause.
+- **Apply:** the diagnostic trigger — when this rule kicks in.
+```
+
+## Memory during the session
+
+- After every substantive response, `session_log` the exchange (role, brief summary, actions).
+- At meaningful moments, `memory_save` (decision | learning | architecture | preference | outcome). Skip trivia.
+- At session end, `session_end` with a summary + key decisions.
+- Durable facts → per-project `memory/` files indexed by a one-line-per-fact `MEMORY.md`. Update, don't duplicate. Don't store what the repo/git already records.
+
+## Knowledge graphs — query before you grep
+
+BEFORE Grep/Read for "where is X used / what breaks if I change Y", query the code graph
+(`code-review-graph`: `query_graph`, `get_impact_radius`, `semantic_search_nodes`). Read
+`graphify-out/GRAPH_REPORT.md` for architecture questions. Fall back to Grep/Read only when
+the graph doesn't cover it.
+
+## Token efficiency
+
+- Don't paste large docs or tool schemas into context — let ToolSearch / a docs MCP fetch on demand.
+- Keep `MEMORY.md` to one line per fact; read full fact files only when relevant.
+- For broad multi-file searches, dispatch a subagent that returns conclusions, not file dumps.
+- Prefer editing over re-reading; don't re-read a file you just wrote to "verify" it.
+
+---
+
+## User & project specifics (fill these in)
+
+- **User:** `<name / role / preferences — e.g. "concise, code-first, senior-level">`
+- **Stack pins:** `<languages, package managers, key paths>`
+- **Active projects:** `<list with one-line status>`
+- **Conventions:** `<anything the agent should always follow>`
