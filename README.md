@@ -44,6 +44,7 @@ install.py       guided installer
 - **[Architecture](docs/ARCHITECTURE.md)** — the 5 layers + hooks + data flow
 - **[Setup](docs/SETUP.md)** — manual install (step by step)
 - **[Agentic setup](docs/AGENTIC_SETUP.md)** — let your Claude install it
+- **[Real numbers](docs/STATS.md)** — measured costs, savings, and the honest list of what was useless
 - **[Token efficiency](docs/TOKEN_EFFICIENCY.md)** — the 7 techniques that cut token use
 - **[Visualizer](docs/VISUALIZER.md)** — the optional live 3D memory graph (pulses on real activity)
 - **[Security](docs/SECURITY.md)** — scrub checklist before you publish your own setup
