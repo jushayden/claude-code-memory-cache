@@ -38,7 +38,14 @@ import uvicorn
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "memory_server"))
-from config import CHROMA_DIR, SESSION_COLLECTION  # noqa: E402
+try:
+    from config import CHROMA_DIR, SESSION_COLLECTION  # noqa: E402
+except ImportError:
+    # not configured yet (config.example.py not copied) — same defaults it documents
+    CHROMA_DIR = Path(os.environ.get(
+        "CLAUDE_BRAIN_CHROMA",
+        str(HERE.parent / "memory_server" / "data" / "chromadb")))
+    SESSION_COLLECTION = "claude_sessions"
 
 CACHE = HERE / "data" / "graph_cache.json"
 EMB_CACHE = HERE / "data" / "graph_embeddings.npy"
