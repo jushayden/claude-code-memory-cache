@@ -15,12 +15,12 @@ Options:
     --rebuild       force a graph rebuild (otherwise a cached layout is reused)
     --max-nodes N   sample down huge stores for layout speed (default 6000)
 
-Store access: connects to CLAUDE_BRAIN_CHROMA_HTTP (host:port) as a thin HTTP
+Store access: connects to MEMORY_CACHE_CHROMA_HTTP (host:port) as a thin HTTP
 client if set — otherwise opens the local store at memory_server's CHROMA_DIR.
 NOTE (direct mode): ChromaDB allows only one writer. Building the graph opens
 the store read-mostly and caches a snapshot, but if you hit lock/crash issues
 while your memory server is running, either run this when sessions are idle or
-serve Chroma over HTTP (`chroma run --path <store>` + set CLAUDE_BRAIN_CHROMA_HTTP).
+serve Chroma over HTTP (`chroma run --path <store>` + set MEMORY_CACHE_CHROMA_HTTP).
 """
 import argparse
 import asyncio
@@ -43,7 +43,7 @@ try:
 except ImportError:
     # not configured yet (config.example.py not copied) — same defaults it documents
     CHROMA_DIR = Path(os.environ.get(
-        "CLAUDE_BRAIN_CHROMA",
+        "MEMORY_CACHE_CHROMA",
         str(HERE.parent / "memory_server" / "data" / "chromadb")))
     SESSION_COLLECTION = "claude_sessions"
 
@@ -65,7 +65,7 @@ _ef = None
 
 def _chroma_collection():
     import chromadb
-    http = os.environ.get("CLAUDE_BRAIN_CHROMA_HTTP", "").strip()
+    http = os.environ.get("MEMORY_CACHE_CHROMA_HTTP", "").strip()
     if http:
         host, _, port = http.partition(":")
         client = chromadb.HttpClient(host=host or "127.0.0.1", port=int(port or 8000))

@@ -1,4 +1,4 @@
-# CLAUDE.md — Claude Brain instructions (template)
+# CLAUDE.md — Claude Code Memory Cache instructions (template)
 
 > Copy this into your global `~/.claude/CLAUDE.md` (or a project `CLAUDE.md`) and fill in
 > the `<PLACEHOLDERS>`. This is the "behavioral" half — it tells the agent to actually

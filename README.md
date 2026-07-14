@@ -1,6 +1,13 @@
 # Claude Code Memory Cache
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-1a7f37.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB.svg)](https://www.python.org)
+[![Made for Claude Code](https://img.shields.io/badge/Made%20for-Claude%20Code-D97757.svg)](https://claude.com/claude-code)
+
 **Persistent, token-efficient memory for Claude Code.** Give the agent a memory that survives across sessions, projects, and machines — a "cache" for everything it should remember between runs, so it stops forgetting what you told it last week and stops re-reading your whole codebase to answer *"where is X used?"*
+
+![The live 3D memory graph — every node is a memory, clustered by meaning, pulsing in real time as sessions search and save](docs/assets/memory-graph.png)
+*The optional [live 3D memory graph](docs/VISUALIZER.md): 2,545 real memories, clustered by meaning, sized by connectedness — it pulses as sessions think. Measured results in [docs/STATS.md](docs/STATS.md).*
 
 > ⚠️ Unofficial. Not affiliated with Anthropic. "Claude" is a trademark of Anthropic; this is an independent community project.
 

@@ -1,5 +1,5 @@
 {
-  "_README": "Claude Brain hooks + a minimal permission set. Replace <CLAUDE_BRAIN_PATH> with the absolute path where you cloned this repo, and make sure `python`, `graphify`, and `code-review-graph` are on your PATH. MERGE this into your existing ~/.claude/settings.json — do not blindly overwrite. On Windows you may need to swap `2>/dev/null` for `2>NUL` in the hook commands.",
+  "_README": "Claude Code Memory Cache hooks + a minimal permission set. Replace <MEMORY_CACHE_PATH> with the absolute path where you cloned this repo, and make sure `python`, `graphify`, and `code-review-graph` are on your PATH. MERGE this into your existing ~/.claude/settings.json — do not blindly overwrite. On Windows you may need to swap `2>/dev/null` for `2>NUL` in the hook commands.",
 
   "permissions": {
     "allow": [
@@ -48,7 +48,7 @@
       {
         "matcher": "",
         "hooks": [
-          { "type": "command", "command": "python <CLAUDE_BRAIN_PATH>/memory_server/auto_log_from_jsonl.py 2>/dev/null || true", "timeout": 30 }
+          { "type": "command", "command": "python <MEMORY_CACHE_PATH>/memory_server/auto_log_from_jsonl.py 2>/dev/null || true", "timeout": 30 }
         ]
       }
     ]

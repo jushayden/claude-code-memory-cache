@@ -1,6 +1,6 @@
 # Architecture
 
-Claude Brain is five memory layers plus the automation that keeps them fresh. Each layer
+Claude Code Memory Cache is five memory layers plus the automation that keeps them fresh. Each layer
 answers a different question; together they give the agent continuity and cheap context.
 
 ---

@@ -1,5 +1,7 @@
 # The Live 3D Memory Graph (optional)
 
+![The live 3D memory graph](assets/memory-graph.png)
+
 Every chunk in your memory store rendered as a node in an interactive 3D force
 graph — semantically similar memories cluster together, hub memories grow larger,
 and the whole thing **lights up in real time** as your Claude sessions search and
@@ -51,7 +53,7 @@ ChromaDB allows one writer. The visualizer reads your store once at startup and
 caches a snapshot, which coexists fine with a running memory server in most
 setups — but if you hit locking issues, either run the visualizer while sessions
 are idle, or serve Chroma over HTTP (`chroma run --path <your store>`) and point
-the visualizer at it with `CLAUDE_BRAIN_CHROMA_HTTP=127.0.0.1:8000`.
+the visualizer at it with `MEMORY_CACHE_CHROMA_HTTP=127.0.0.1:8000`.
 
 ## Credits
 

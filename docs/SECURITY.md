@@ -1,6 +1,6 @@
 # Security & Privacy
 
-Claude Brain reads and writes your notes, code, and memory. That means a repo can easily
+Claude Code Memory Cache reads and writes your notes, code, and memory. That means a repo can easily
 pick up personal data if you're not careful. Read this before you push anything public.
 
 ## Never commit these

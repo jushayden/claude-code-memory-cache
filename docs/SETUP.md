@@ -10,8 +10,8 @@ Prefer to let your agent do it? See **[AGENTIC_SETUP.md](AGENTIC_SETUP.md)**. Or
 
 ## 1. Clone + install
 ```bash
-git clone https://github.com/jushayden/claude-code-memory-cache claude-brain
-cd claude-brain
+git clone https://github.com/jushayden/claude-code-memory-cache
+cd claude-code-memory-cache
 pip install -r requirements.txt          # memory server deps (chromadb, mcp)
 ```
 
@@ -25,7 +25,7 @@ pip install code-review-graph   # graph MCP + query tools   (verify package/sour
 ```bash
 cp memory_server/config.example.py memory_server/config.py
 # edit memory_server/config.py — point VAULT_PATH at your Obsidian vault
-# (or set CLAUDE_BRAIN_VAULT / CLAUDE_BRAIN_CHROMA env vars instead)
+# (or set MEMORY_CACHE_VAULT / MEMORY_CACHE_CHROMA env vars instead)
 ```
 
 ## 4. Register the MCP servers
@@ -33,7 +33,7 @@ Add to your project `.mcp.json` or user `~/.claude.json`:
 ```json
 {
   "mcpServers": {
-    "memory":            { "command": "python", "args": ["<CLAUDE_BRAIN_PATH>/memory_server/server.py"], "type": "stdio" },
+    "memory":            { "command": "python", "args": ["<MEMORY_CACHE_PATH>/memory_server/server.py"], "type": "stdio" },
     "code-review-graph": { "command": "code-review-graph", "args": ["serve"], "type": "stdio" },
     "obsidian-vault":    { "command": "<your obsidian MCP command>", "type": "stdio" }
   }
@@ -41,7 +41,7 @@ Add to your project `.mcp.json` or user `~/.claude.json`:
 ```
 
 ## 5. Add the hooks
-Open `config/settings.template.json`, replace `<CLAUDE_BRAIN_PATH>`, and **merge** the `hooks`
+Open `config/settings.template.json`, replace `<MEMORY_CACHE_PATH>`, and **merge** the `hooks`
 (and, if you like, the minimal `permissions`) into your existing `~/.claude/settings.json`.
 Don't blindly overwrite yours. On Windows, swap `2>/dev/null` for `2>NUL` if the hooks error.
 

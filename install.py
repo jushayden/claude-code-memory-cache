@@ -66,7 +66,7 @@ def print_snippets():
     print("1. Register MCP servers in ~/.claude.json (see docs/SETUP.md step 4).")
     print(f"     memory server command:  python {ROOT / 'memory_server' / 'server.py'}")
     print("2. Merge hooks from config/settings.template.json into ~/.claude/settings.json")
-    print(f"     (replace <CLAUDE_BRAIN_PATH> with {ROOT})")
+    print(f"     (replace <MEMORY_CACHE_PATH> with {ROOT})")
     print("3. Append config/CLAUDE.md.template to ~/.claude/CLAUDE.md and fill placeholders.")
     print("4. Restart Claude Code, then verify (docs/SETUP.md step 8).")
 

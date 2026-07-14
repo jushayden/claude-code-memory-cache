@@ -1,6 +1,6 @@
 # Agentic setup — let your Claude install it
 
-Claude Brain was built *by* an agent, so an agent can install it. Open Claude Code in the
+Claude Code Memory Cache was built *by* an agent, so an agent can install it. Open Claude Code in the
 cloned repo and paste the prompt below. It will walk through setup, asking you for your
 paths and confirming before it changes anything.
 
@@ -12,7 +12,7 @@ paths and confirming before it changes anything.
 ## Paste this into Claude Code
 
 ```
-You are installing "Claude Brain" (a persistent memory system) on my machine from this
+You are installing "Claude Code Memory Cache" (a persistent memory system) on my machine from this
 repo. Work step by step, confirm before each change, and never overwrite my existing
 config blindly — merge.
 
