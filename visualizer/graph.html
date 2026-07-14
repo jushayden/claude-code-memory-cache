@@ -1,0 +1,126 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Memory Graph — live</title>
+<style>
+  html,body{margin:0;height:100%;background:#0b0e14;color:#cbd5e1;font-family:system-ui,Segoe UI,sans-serif;overflow:hidden}
+  #graph{width:100vw;height:100vh}
+  .panel{position:fixed;z-index:10;background:rgba(13,17,26,.78);backdrop-filter:blur(6px);
+         padding:8px 12px;border:1px solid #1e293b;border-radius:10px;font-size:12.5px}
+  #hud{top:10px;left:12px}
+  #hud b{color:#e2e8f0}
+  #legend{bottom:10px;left:12px;line-height:1.9}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin:0 5px 0 10px;vertical-align:middle}
+  #q{top:10px;right:12px;max-width:360px;opacity:0;transition:opacity .25s;
+     background:rgba(8,145,178,.22);border-color:#0e7490;color:#e0f2fe}
+  #status{bottom:10px;right:12px;color:#64748b}
+  .live{color:#22d3ee}
+</style>
+</head>
+<body>
+<div id="hud" class="panel"><b>Memory graph</b> — <span id="count">…</span> nodes ·
+  <span id="status2" class="live">connecting…</span> · <a href="/" style="color:#38bdf8;text-decoration:none">3D view</a><br>
+  <span style="color:#64748b">drag to move · scroll to zoom · hover to read · click to focus</span></div>
+<div id="q" class="panel"></div>
+<div id="legend" class="panel"></div>
+<div id="status" class="panel">query stream: <span id="status">…</span></div>
+<div id="graph"></div>
+
+<script src="/static/force-graph.js"></script>
+<script>
+const TYPE_COLORS = {
+  outcome:'#7c8ba1', decision:'#60a5fa', learning:'#34d399', preference:'#fbbf24',
+  architecture:'#a78bfa', vault_doc:'#22d3ee',
+  project:'#fb7185', feedback:'#fb923c', reference:'#e879f9', user:'#f1f5f9',
+  '?':'#64748b'
+};
+const PULSE = '#e0f2fe', EDGE_HL = '#38bdf8', DUR = 1900;
+const active = new Map();       // nodeId -> activation timestamp
+const activeLink = new Map();   // "a|b" -> activation timestamp
+
+const now = () => performance.now();
+function nInt(id){ const t=active.get(id); if(t==null) return 0; const e=(now()-t)/DUR; if(e>=1){active.delete(id);return 0;} return 1-e; }
+function lInt(k){ const t=activeLink.get(k); if(t==null) return 0; const e=(now()-t)/DUR; if(e>=1){activeLink.delete(k);return 0;} return 1-e; }
+const lkey = (l)=>{ const a=(l.source.id!=null?l.source.id:l.source), b=(l.target.id!=null?l.target.id:l.target); return a<b?a+'|'+b:b+'|'+a; };
+
+let Graph;
+fetch('/graph.json').then(r=>r.json()).then(data=>{
+  document.getElementById('count').textContent = data.nodes.length.toLocaleString();
+  const types = [...new Set(data.nodes.map(n=>n.type))].sort((a,b)=>
+    data.nodes.filter(n=>n.type===b).length - data.nodes.filter(n=>n.type===a).length);
+  document.getElementById('legend').innerHTML = types.map(t=>
+    `<span class="dot" style="background:${TYPE_COLORS[t]||'#64748b'}"></span>${t}`).join(' ');
+
+  Graph = ForceGraph()(document.getElementById('graph'))
+    .graphData(data)
+    .backgroundColor('#0b0e14')
+    .nodeRelSize(2.4)
+    .cooldownTime(8000)
+    .warmupTicks(20)
+    .d3VelocityDecay(0.35)
+    .nodeVal(n => 1 + 14*nInt(n.id))
+    .nodeColor(n => nInt(n.id) > 0 ? PULSE : (TYPE_COLORS[n.type]||'#64748b'))
+    .nodeLabel(n => `<div style="max-width:340px;font-size:12px;line-height:1.4">
+        <b style="color:#7dd3fc">${n.type}</b> &middot; ${n.project||'—'}<br>${n.label}</div>`)
+    .linkColor(l => { const k=lInt(lkey(l)); return k>0 ? EDGE_HL : 'rgba(140,144,150,0.17)'; })
+    .linkWidth(l => { const k=lInt(lkey(l)); return k>0 ? 2.5 : 0.6; })
+    .onNodeClick(n => { Graph.centerAt(n.x,n.y,700); Graph.zoom(5,700); });
+
+  // glow ring under active nodes
+  Graph.nodeCanvasObjectMode(n => nInt(n.id) > 0 ? 'before' : undefined)
+       .nodeCanvasObject((n,ctx,scale)=>{
+          const k = nInt(n.id); if (k<=0) return;
+          const r = (1+14*k)*2.4/scale + 7/scale;
+          ctx.beginPath(); ctx.arc(n.x,n.y,r,0,2*Math.PI);
+          ctx.fillStyle = `rgba(56,189,248,${0.30*k})`; ctx.fill();
+       });
+
+  document.getElementById('status2').textContent = 'live';
+});
+
+// live query stream
+const es = new EventSource('/events');
+es.onopen = () => document.getElementById('status').textContent = 'connected';
+es.onerror = () => document.getElementById('status').textContent = 'reconnecting…';
+es.onmessage = (e) => {
+  let d; try { d = JSON.parse(e.data); } catch { return; }
+  if (!Graph) return;
+  const t = now();
+
+  // live-add: a new memory was just saved
+  if (d.kind === 'add' && d.node) {
+    const data = Graph.graphData();
+    if (!data.nodes.some(n => n.id === d.node.id)) {
+      const nb = (d.links && d.links[0]) ? data.nodes.find(n => n.id === d.links[0].target) : null;
+      if (nb) { d.node.x = nb.x + (Math.random()-.5)*30; d.node.y = nb.y + (Math.random()-.5)*30; }
+      data.nodes.push(d.node);
+      (d.links||[]).forEach(l => data.links.push(l));
+      Graph.graphData(data);
+      document.getElementById('count').textContent = data.nodes.length.toLocaleString();
+    }
+    active.set(d.node.id, t);
+    (d.links||[]).forEach(l => { const o=l.target; activeLink.set(d.node.id<o?d.node.id+'|'+o:o+'|'+d.node.id, t); });
+    Graph.d3ReheatSimulation();
+    const q = document.getElementById('q');
+    q.textContent = '➕ new memory: ' + (d.node.label||'').slice(0,120);
+    q.style.opacity = 1; clearTimeout(q._t); q._t = setTimeout(()=>q.style.opacity=0, DUR+1500);
+    return;
+  }
+
+  // search pulse
+  if (!d.ids || !d.ids.length) return;
+  const hit = new Set(d.ids);
+  d.ids.forEach(id => active.set(id, t));
+  Graph.graphData().links.forEach(l => {
+    const a=(l.source.id!=null?l.source.id:l.source), b=(l.target.id!=null?l.target.id:l.target);
+    if (hit.has(a) || hit.has(b)) activeLink.set(a<b?a+'|'+b:b+'|'+a, t);
+  });
+  Graph.d3ReheatSimulation();
+  const q = document.getElementById('q');
+  q.textContent = '🔎 ' + (d.query||'query').slice(0,140);
+  q.style.opacity = 1; clearTimeout(q._t); q._t = setTimeout(()=>q.style.opacity=0, DUR);
+};
+</script>
+</body>
+</html>

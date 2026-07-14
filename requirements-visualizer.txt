@@ -1,0 +1,5 @@
+# Optional: the live 3D memory graph (visualizer/graph_server.py)
+fastapi
+uvicorn
+numpy
+scikit-learn

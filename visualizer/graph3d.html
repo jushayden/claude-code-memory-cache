@@ -1,0 +1,425 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Memory Graph — 3D live</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;color:#cbd5e1;font-family:system-ui,Segoe UI,sans-serif;overflow:hidden}
+  #graph{width:100vw;height:100vh;touch-action:none;
+    background:radial-gradient(ellipse 100% 80% at 50% 42%, #070a12 0%, #020308 55%, #000 100%)}
+  #graph canvas{touch-action:none !important}   /* the canvas is the event target — pinch must reach OrbitControls */
+  .panel{position:fixed;z-index:10;background:rgba(8,11,18,.78);backdrop-filter:blur(6px);
+         padding:8px 12px;border:1px solid #17202f;border-radius:10px;font-size:12.5px}
+  #hud{top:10px;left:12px}
+  #hud b{color:#e2e8f0}
+  #hud a{color:#38bdf8;text-decoration:none}
+  #legend{bottom:10px;left:12px;line-height:1.9}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin:0 5px 0 10px;vertical-align:middle}
+  #q{top:10px;right:12px;max-width:360px;opacity:0;transition:opacity .25s;
+     background:rgba(8,145,178,.22);border-color:#0e7490;color:#e0f2fe}
+  #statusbox{bottom:10px;right:12px;color:#64748b}
+  .live{color:#22d3ee}
+  /* kiosk (7in touchscreen): compact panels, tap-friendly controls, no cursor */
+  .kiosk #statusbox{display:none}
+  .kiosk *{cursor:none !important}
+  .kiosk .panel{font-size:11px;padding:5px 8px;border-radius:8px}
+  .kiosk #legend{line-height:1.5;font-size:10px}
+  .kiosk #legend .dot{width:8px;height:8px;margin:0 4px 0 8px}
+  .kiosk #hud a{display:inline-block;padding:4px 9px;margin:1px;background:rgba(56,189,248,.14);
+    border:1px solid rgba(56,189,248,.25);border-radius:7px}
+  .kiosk .help{display:none}
+  /* zoom buttons: desktop hidden, kiosk shows big touch targets */
+  #zoomctl{display:none}
+  .kiosk #zoomctl{display:flex;flex-direction:column;gap:10px;position:fixed;right:12px;top:50%;
+    transform:translateY(-50%);z-index:20}
+  .kiosk #zoomctl button{width:52px;height:52px;border-radius:50%;font-size:26px;color:#a5e7fa;
+    background:rgba(13,20,32,.82);border:1px solid rgba(56,189,248,.35);backdrop-filter:blur(4px)}
+  .kiosk #zoomctl button:active{background:rgba(56,189,248,.3)}
+</style>
+</head>
+<body>
+<div id="hud" class="panel"><b>Memory graph — 3D</b> — <span id="count">…</span> nodes ·
+  <span id="status2" class="live">connecting…</span> · <a href="/2d">2D view</a> · <a href="#" id="spin">spin: on</a> · <a href="#" id="holo">hologram: off</a><br>
+  <span class="help" style="color:#64748b">left-drag rotate · right-drag pan · scroll zoom · hover to read · click to fly</span></div>
+<div id="q" class="panel"></div>
+<div id="legend" class="panel"></div>
+<div id="statusbox" class="panel">query stream: <span id="status">…</span></div>
+<div id="zoomctl">
+  <button id="zin" aria-label="zoom in">+</button>
+  <button id="zout" aria-label="zoom out">&minus;</button>
+</div>
+<div id="graph"></div>
+
+<script src="/static/three.js"></script>
+<script src="/static/bloom-pass.js"></script>
+<script src="/static/3d-force-graph.js"></script>
+<script>
+// ?lite -> low-GPU mode (Pi kiosk): no bloom, fewer stars, coarser spheres
+// ?kiosk -> hide the UI panels (keeps the live query flash)
+const PARAMS = new URLSearchParams(location.search);
+const LITE = PARAMS.has('lite'), KIOSK = PARAMS.has('kiosk');
+if (KIOSK) document.documentElement.classList.add('kiosk');
+
+const TYPE_COLORS = {
+  outcome:'#7c8ba1', decision:'#60a5fa', learning:'#34d399', preference:'#fbbf24',
+  architecture:'#a78bfa', vault_doc:'#22d3ee',
+  project:'#fb7185', feedback:'#fb923c', reference:'#e879f9', user:'#f1f5f9',
+  '?':'#64748b'
+};
+// hologram: monochrome electric-cyan family (Stark-lab style)
+const HOLO_COLORS = {
+  outcome:'#0e7490', decision:'#22d3ee', learning:'#67e8f9', preference:'#a5f3fc',
+  architecture:'#38bdf8', vault_doc:'#7dd3fc',
+  project:'#5eead4', feedback:'#67e8f9', reference:'#a5f3fc', user:'#cffafe',
+  '?':'#155e75'
+};
+let PALETTE = TYPE_COLORS;
+let PULSE = '#e0f2fe';          // holo mode swaps these to hot orange (complement of cyan = max pop)
+const DUR = 2200;
+const active = new Map(), activeLink = new Map();
+const lkey = (l)=>{ const a=(l.source.id!=null?l.source.id:l.source), b=(l.target.id!=null?l.target.id:l.target); return a<b?a+'|'+b:b+'|'+a; };
+
+let Graph, edgeGeo, edgePos, edgeColors, edgeSeg, bloomPass, lastTick = performance.now();
+const EDGE_GREY = [0.13, 0.14, 0.16];       // dark grey (normal mode)
+const EDGE_CYAN = [0.10, 0.42, 0.55];       // electric filaments (hologram mode)
+let EDGE_BASE = EDGE_GREY;
+let EDGE_HL  = [0.22, 0.74, 0.97];          // pulse (cyan; holo -> orange-red)
+
+// ---- all 9k+ edges as ONE GPU object (this is what makes it smooth) ----
+function buildEdges(data){
+  if (edgeSeg) { Graph.scene().remove(edgeSeg); edgeGeo.dispose(); }
+  const L = data.links.length;
+  edgePos = new Float32Array(L*6);
+  edgeColors = new Float32Array(L*6);
+  edgeGeo = new THREE.BufferGeometry();
+  edgeGeo.setAttribute('position', new THREE.BufferAttribute(edgePos, 3));
+  edgeGeo.setAttribute('color', new THREE.BufferAttribute(edgeColors, 3));
+  edgeSeg = new THREE.LineSegments(edgeGeo,
+    new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.36, fog: false }));
+  edgeSeg.frustumCulled = false;
+  edgeSeg.renderOrder = -1;
+  Graph.scene().add(edgeSeg);
+  paintEdges(data);
+}
+function paintEdges(data){
+  data.links.forEach((l, i) => {
+    const c = activeLink.has(lkey(l)) ? EDGE_HL : EDGE_BASE;
+    for (let v = 0; v < 2; v++) {
+      edgeColors[i*6+v*3] = c[0]; edgeColors[i*6+v*3+1] = c[1]; edgeColors[i*6+v*3+2] = c[2];
+    }
+  });
+  edgeGeo.attributes.color.needsUpdate = true;
+}
+function syncEdgePositions(data){
+  const links = data.links;
+  for (let i = 0; i < links.length; i++) {
+    const s = links[i].source, t = links[i].target;
+    if (typeof s !== 'object' || typeof t !== 'object') continue;
+    edgePos[i*6]   = s.x; edgePos[i*6+1] = s.y; edgePos[i*6+2] = s.z;
+    edgePos[i*6+3] = t.x; edgePos[i*6+4] = t.y; edgePos[i*6+5] = t.z;
+  }
+  edgeGeo.attributes.position.needsUpdate = true;
+}
+
+function refreshNodeStyles(){
+  Graph.nodeColor(Graph.nodeColor()); Graph.nodeVal(Graph.nodeVal());
+}
+
+// ---- comets: a light that travels along a used connection ----
+const COMETS_MAX = 400;
+let cometGeo, cometPts, comets = [];
+function initComets(){
+  cometGeo = new THREE.BufferGeometry();
+  cometGeo.setAttribute('position',
+    new THREE.BufferAttribute(new Float32Array(COMETS_MAX*3).fill(1e9), 3));
+  cometPts = new THREE.Points(cometGeo, new THREE.PointsMaterial({
+    color: 0xd9fbff, size: 5.5, sizeAttenuation: false, transparent: true,
+    opacity: 0.95, depthWrite: false, blending: THREE.AdditiveBlending }));
+  cometPts.frustumCulled = false;
+  Graph.scene().add(cometPts);
+}
+function spawnComets(pairs){
+  const t0 = performance.now();
+  pairs.forEach(([a, b], i) => {
+    if (comets.length >= COMETS_MAX || typeof a !== 'object' || typeof b !== 'object') return;
+    comets.push({ a, b, t0: t0 + Math.min(i*110, 900), dur: 800 });
+  });
+}
+function stepComets(){
+  if (!cometGeo) return;
+  const now = performance.now();
+  comets = comets.filter(c => (now - c.t0) < c.dur);
+  const arr = cometGeo.attributes.position.array;
+  arr.fill(1e9);
+  let j = 0;
+  for (const c of comets){
+    const t = (now - c.t0) / c.dur;
+    if (t < 0) continue;                                     // staggered start
+    const e = t < .5 ? 2*t*t : 1 - Math.pow(-2*t+2, 2)/2;    // ease in-out
+    arr[j*3]   = c.a.x + (c.b.x - c.a.x)*e;
+    arr[j*3+1] = c.a.y + (c.b.y - c.a.y)*e;
+    arr[j*3+2] = c.a.z + (c.b.z - c.a.z)*e;
+    if (++j >= COMETS_MAX) break;
+  }
+  cometGeo.attributes.position.needsUpdate = true;
+}
+const SHORT_NAMES = { architecture:'arch', preference:'pref', vault_doc:'vault', reference:'ref' };
+function renderLegend(){
+  document.getElementById('legend').innerHTML = (window.__types||[])
+    .filter(t => t !== '?')
+    .slice(0, 8)
+    .map(t => `<span class="dot" style="background:${PALETTE[t]||'#64748b'}"></span>${SHORT_NAMES[t]||t}`)
+    .join(' ');
+}
+// pulls every node toward the surface of an ellipsoid shell (the hologram globe)
+function radialShell(R, yScale){
+  let nodes = [];
+  function force(alpha){
+    for (const n of nodes){
+      const sx = n.x, sy = n.y / yScale, sz = n.z;
+      const r = Math.hypot(sx, sy, sz) || 1;
+      const k = (R - r) / r * alpha * 0.28;
+      n.vx += sx * k; n.vy += sy * k * yScale; n.vz += sz * k;
+    }
+  }
+  force.initialize = ns => { nodes = ns; };
+  return force;
+}
+function schedule(){ setTimeout(()=>{
+  const n = performance.now();
+  for (const [k,v] of active) if (n-v >= DUR) active.delete(k);
+  for (const [k,v] of activeLink) if (n-v >= DUR) activeLink.delete(k);
+  refreshNodeStyles(); if (Graph) paintEdges(Graph.graphData());
+}, DUR+60); }
+
+fetch('/graph.json').then(r=>r.json()).then(data=>{
+  document.getElementById('count').textContent = data.nodes.length.toLocaleString();
+
+  // size = semantic connectedness: hubs (memories many others relate to) grow
+  const deg = {};
+  data.links.forEach(l => { deg[l.source]=(deg[l.source]||0)+1; deg[l.target]=(deg[l.target]||0)+1; });
+  data.nodes.forEach(n => {
+    n.deg = deg[n.id] || 1;
+    n.x *= 1.9; n.y *= 1.9; n.z *= 1.9;   // scale the seed layout — spreads neighbors too
+  });
+  // steep curve: volume grows with degree^2, so hubs visibly tower over leaf nodes
+  const sizeOf = n => Math.min(0.5 + Math.pow(n.deg||1, 2) * 0.35, 60);
+  window.__types = [...new Set(data.nodes.map(n=>n.type))].sort((a,b)=>
+    data.nodes.filter(n=>n.type===b).length - data.nodes.filter(n=>n.type===a).length);
+  renderLegend();
+
+  Graph = ForceGraph3D({ rendererConfig: { antialias: !LITE, alpha: true, powerPreference: 'high-performance' } })(document.getElementById('graph'))
+    .graphData(data)
+    .backgroundColor('rgba(0,0,0,0)')
+    .showNavInfo(false)
+    .nodeRelSize(5)
+    .nodeResolution(LITE ? 10 : 16)   // high-segment spheres — perfectly round, no faceting
+    .warmupTicks(70)
+    .cooldownTime(9000)
+    .d3AlphaDecay(0.03)
+    .d3VelocityDecay(0.32)
+    .nodeVal(n => active.has(n.id) ? sizeOf(n)*3 + 12 : sizeOf(n))
+    .nodeColor(n => active.has(n.id) ? PULSE : (PALETTE[n.type]||'#64748b'))
+    .nodeOpacity(0.95)
+    .nodeLabel(KIOSK ? (() => null) : (n => `<div style="max-width:340px;font-size:12px;line-height:1.4;background:rgba(8,11,18,.94);
+        padding:8px 10px;border:1px solid #17202f;border-radius:8px">
+        <b style="color:#7dd3fc">${n.type}</b> &middot; ${n.project||'—'}<br>${n.label}</div>`))
+    .linkVisibility(false)                          // defaults off — we draw edges ourselves
+    .onEngineTick(() => { lastTick = performance.now(); })
+    .onNodeClick(n => {
+      lastInteract = performance.now() + 2500;      // brief hold while flying/reading
+      const d = 70, r = 1 + d/Math.hypot(n.x||1,n.y||1,n.z||1);
+      Graph.cameraPosition({x:n.x*r,y:n.y*r,z:n.z*r}, n, 1100);
+    });
+
+  // spread the layout — wide, and let repulsion actually separate close neighbors
+  Graph.d3Force('charge').strength(-320);
+  Graph.d3Force('link').distance(150);
+  Graph.cameraPosition({ x: 0, y: 420, z: 2100 });
+
+  // smoothness: render at 1:1 pixels — high-DPI silently multiplies GPU load
+  Graph.renderer().setPixelRatio(1);
+
+  buildEdges(data);
+  initComets();
+
+  // no fog — nothing fades with distance, no matter how far you pull back
+  Graph.scene().add(new THREE.AmbientLight(0xffffff, 1.7));   // lift the lambert nodes
+
+  // neon: bloom post-process — NODES glow; threshold keeps the dark edges out of it
+  try {
+    if (LITE) throw new Error('lite mode');   // Pi GPU: skip the fullscreen passes
+    bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(window.innerWidth, window.innerHeight), 1.15, 0.65, 0.22);
+    Graph.postProcessingComposer().addPass(bloomPass);
+  } catch (err) { console.warn('bloom unavailable:', err); }
+  function starLayer(N, rMin, rMax, size, color, opacity){
+    const pos = new Float32Array(N*3);
+    for (let i = 0; i < N; i++) {
+      const r = rMin + Math.random()*(rMax-rMin);
+      const th = Math.random()*2*Math.PI, ph = Math.acos(2*Math.random()-1);
+      pos[i*3]   = r*Math.sin(ph)*Math.cos(th);
+      pos[i*3+1] = r*Math.cos(ph);
+      pos[i*3+2] = r*Math.sin(ph)*Math.sin(th);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const s = new THREE.Points(g, new THREE.PointsMaterial({
+      color, size, sizeAttenuation: false, transparent: true, opacity, depthWrite: false, fog: false,
+    }));
+    Graph.scene().add(s);
+  }
+  starLayer(LITE ? 70 : 200, 1700, 2700, 1.3, 0xbccbe4, 0.4);  // faint parallax shimmer
+
+  document.getElementById('status2').textContent = 'live';
+});
+
+// ---- orbit: resumes the moment you release ----
+let spin = true, lastInteract = 0, angle = 0, dragging = false;
+(function frame(){
+  if (Graph) {
+    const cam = Graph.cameraPosition();
+    if (spin && !dragging && performance.now() > lastInteract) {
+      const r = Math.hypot(cam.x, cam.z) || 2100;
+      angle += 0.0016;
+      Graph.cameraPosition({ x: r*Math.sin(angle), y: cam.y, z: r*Math.cos(angle) });
+    } else {
+      angle = Math.atan2(cam.x, cam.z);   // stay synced so resume is seamless
+    }
+    // keep custom edges glued to nodes while physics is (re)settling
+    if (edgeSeg && performance.now() - lastTick < 1200) syncEdgePositions(Graph.graphData());
+    stepComets();
+  }
+  requestAnimationFrame(frame);
+})();
+const gEl = document.getElementById('graph');
+gEl.addEventListener('pointerdown', () => { dragging = true; }, {passive:true});   // grab/click pauses
+window.addEventListener('pointerup', () => { dragging = false; }, {passive:true}); // release resumes
+// (zoooming never pauses — wheel deliberately not wired)
+
+// ---- pinch zoom, implemented directly (touch controls vary by platform) ----
+const touches = new Map();
+let pinchDist = 0;
+gEl.addEventListener('pointerdown', e => {
+  touches.set(e.pointerId, [e.clientX, e.clientY]);
+  if (touches.size === 2) {
+    const [a, b] = [...touches.values()];
+    pinchDist = Math.hypot(a[0]-b[0], a[1]-b[1]);
+  }
+}, {passive:true});
+gEl.addEventListener('pointermove', e => {
+  if (!touches.has(e.pointerId)) return;
+  touches.set(e.pointerId, [e.clientX, e.clientY]);
+  if (touches.size === 2 && Graph) {
+    const [a, b] = [...touches.values()];
+    const d = Math.hypot(a[0]-b[0], a[1]-b[1]);
+    if (pinchDist > 0 && d > 0) {
+      const f = pinchDist / d;                     // fingers apart -> f<1 -> zoom in
+      const cam = Graph.cameraPosition();
+      const r = Math.hypot(cam.x, cam.y, cam.z);
+      const nr = Math.min(Math.max(r * f, 120), 7000);
+      const s = nr / (r || 1);
+      Graph.cameraPosition({ x: cam.x*s, y: cam.y*s, z: cam.z*s });
+    }
+    pinchDist = d;
+  }
+}, {passive:true});
+['pointerup','pointercancel','pointerout'].forEach(ev =>
+  window.addEventListener(ev, e => { touches.delete(e.pointerId); if (touches.size < 2) pinchDist = 0; }, {passive:true}));
+
+// ---- kiosk zoom buttons: always work, no multitouch required ----
+function zoomBy(f){
+  if (!Graph) return;
+  const cam = Graph.cameraPosition();
+  const r = Math.hypot(cam.x, cam.y, cam.z) || 1;
+  const s = Math.min(Math.max(r*f, 120), 7000) / r;
+  Graph.cameraPosition({ x: cam.x*s, y: cam.y*s, z: cam.z*s }, undefined, 260);
+  lastInteract = performance.now() + 400;
+}
+document.getElementById('zin').addEventListener('click', () => zoomBy(0.72));
+document.getElementById('zout').addEventListener('click', () => zoomBy(1.38));
+document.getElementById('spin').onclick = (e) => {
+  e.preventDefault(); spin = !spin;
+  e.target.textContent = 'spin: ' + (spin ? 'on' : 'off');
+};
+
+// ---- hologram mode: cyan additive shell, Stark-lab style ----
+let holo = false;
+document.getElementById('holo').onclick = (e) => {
+  e.preventDefault();
+  if (!Graph) return;
+  holo = !holo;
+  e.target.textContent = 'hologram: ' + (holo ? 'on' : 'off');
+  PALETTE = holo ? HOLO_COLORS : TYPE_COLORS;
+  EDGE_BASE = holo ? EDGE_CYAN : EDGE_GREY;
+  // pulses: vs the cyan globe, hot orange-red is the complement — pops hardest
+  PULSE   = holo ? '#ff7a3d' : '#e0f2fe';
+  EDGE_HL = holo ? [1.0, 0.38, 0.12] : [0.22, 0.74, 0.97];
+  if (cometPts) cometPts.material.color.set(holo ? 0xffb27a : 0xd9fbff);
+  if (edgeSeg) {
+    edgeSeg.material.blending = holo ? THREE.AdditiveBlending : THREE.NormalBlending;
+    edgeSeg.material.opacity = holo ? 0.55 : 0.36;
+    edgeSeg.material.needsUpdate = true;
+  }
+  if (bloomPass) {
+    bloomPass.strength = holo ? 2.1 : 1.15;
+    bloomPass.threshold = holo ? 0.08 : 0.22;
+  }
+  Graph.d3Force('radial', holo ? radialShell(880, 0.72) : null);  // ellipsoid shell on/off
+  Graph.d3ReheatSimulation();                                     // animate the migration
+  refreshNodeStyles(); paintEdges(Graph.graphData()); renderLegend();
+};
+
+// ---- live stream ----
+const es = new EventSource('/events');
+es.onopen = () => document.getElementById('status').textContent = 'connected';
+es.onerror = () => document.getElementById('status').textContent = 'reconnecting…';
+es.onmessage = (e) => {
+  let d; try { d = JSON.parse(e.data); } catch { return; }
+  if (!Graph) return;
+  const t = performance.now();
+  const q = document.getElementById('q');
+
+  if (d.kind === 'add' && d.node) {                       // live-add: new memory pops in
+    const data = Graph.graphData();
+    if (!data.nodes.some(n => n.id === d.node.id)) {
+      const nb = (d.links && d.links[0]) ? data.nodes.find(n => n.id === d.links[0].target) : null;
+      if (nb) { d.node.x=nb.x+(Math.random()-.5)*24; d.node.y=nb.y+(Math.random()-.5)*24; d.node.z=(nb.z||0)+(Math.random()-.5)*24; }
+      d.node.deg = (d.links||[]).length || 1;
+      data.nodes.push(d.node);
+      (d.links||[]).forEach(l => data.links.push(l));
+      Graph.graphData(data);
+      buildEdges(data);                                   // rebuild the merged edge object
+      document.getElementById('count').textContent = data.nodes.length.toLocaleString();
+    }
+    active.set(d.node.id, t);
+    (d.links||[]).forEach(l => { const o=l.target; activeLink.set(d.node.id<o?d.node.id+'|'+o:o+'|'+d.node.id, t); });
+    refreshNodeStyles(); paintEdges(Graph.graphData()); schedule();
+    q.textContent = '➕ new memory: ' + (d.node.label||'').slice(0,120);
+    q.style.opacity = 1; clearTimeout(q._t); q._t = setTimeout(()=>q.style.opacity=0, DUR+1500);
+    return;
+  }
+
+  if (!d.ids || !d.ids.length) return;                    // search pulse
+  // ids arrive ranked (best match first). Light ONLY the connections actually
+  // inside the result set, and run a comet along each — from the stronger
+  // match toward the weaker one.
+  const rank = new Map(d.ids.map((id, i) => [id, i]));
+  d.ids.forEach(id => active.set(id, t));
+  const pairs = [];
+  Graph.graphData().links.forEach(l => {
+    const a = l.source.id ?? l.source, b = l.target.id ?? l.target;
+    if (rank.has(a) && rank.has(b)) {
+      activeLink.set(lkey(l), t);
+      pairs.push(rank.get(a) <= rank.get(b) ? [l.source, l.target] : [l.target, l.source]);
+    }
+  });
+  spawnComets(pairs);
+  refreshNodeStyles(); paintEdges(Graph.graphData()); schedule();
+  q.textContent = '🔎 ' + (d.query||'query').slice(0,140);
+  q.style.opacity = 1; clearTimeout(q._t); q._t = setTimeout(()=>q.style.opacity=0, DUR);
+};
+</script>
+</body>
+</html>

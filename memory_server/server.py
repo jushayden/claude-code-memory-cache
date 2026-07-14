@@ -1,5 +1,8 @@
 """MCP server exposing session-memory tools to Claude Code (stdio transport)."""
 
+import json as _json
+import threading as _threading
+import urllib.request as _urllib
 from datetime import datetime
 from mcp.server.fastmcp import FastMCP
 from storage import (
@@ -10,6 +13,35 @@ from obsidian import create_session_note, append_to_session, append_summary
 mcp = FastMCP("claude-memory")
 client = get_client()
 collection = get_collection(client)
+
+# ---- optional live visualizer (visualizer/graph_server.py, port 8010) ----
+# Fire-and-forget notifications so the graph pulses on real memory activity.
+# If the visualizer isn't running these silently no-op; they never block or raise.
+_VIZ = "http://127.0.0.1:8010"
+
+
+def _viz_post(path: str, payload: dict) -> None:
+    def _post():
+        try:
+            req = _urllib.Request(_VIZ + path,
+                                  data=_json.dumps(payload).encode("utf-8"),
+                                  headers={"Content-Type": "application/json"})
+            _urllib.urlopen(req, timeout=0.5)
+        except Exception:
+            pass
+    _threading.Thread(target=_post, daemon=True).start()
+
+
+def _emit_activity(ids, query):
+    ids = [i for i in ids if i]
+    if ids:
+        _viz_post("/emit", {"ids": ids, "query": query})
+
+
+def _emit_add(doc_id, text, chunk_type, project):
+    if doc_id:
+        _viz_post("/add", {"id": doc_id, "text": text, "type": chunk_type,
+                           "project": project})
 
 
 @mcp.tool()
@@ -23,6 +55,7 @@ def memory_search(query: str, n_results: int = 5, project: str = "") -> str:
         project: Optional project filter (e.g. "MyApp", "backend")
     """
     hits = search_sessions(collection, query, n_results, project if project else None)
+    _emit_activity([h.get("id") for h in hits], query)
     if not hits:
         return "No relevant past sessions found."
     return "\n\n---\n\n".join(
@@ -48,8 +81,9 @@ def memory_save(text: str, session_id: str, chunk_type: str = "decision",
         tags: Comma-separated tags
     """
     tag_list = [t.strip() for t in tags.split(",") if t.strip()]
-    return "Saved to memory: " + store_chunk(
-        collection, text, session_id, chunk_type, project, tag_list)
+    doc_id = store_chunk(collection, text, session_id, chunk_type, project, tag_list)
+    _emit_add(doc_id, text, chunk_type, project)
+    return "Saved to memory: " + doc_id
 
 
 @mcp.tool()

@@ -16,6 +16,8 @@ Five cooperating memory layers, kept fresh automatically by hooks:
 
 The result: continuity across sessions, and much lower token use (see [docs/TOKEN_EFFICIENCY.md](docs/TOKEN_EFFICIENCY.md)).
 
+**Optional eye candy:** a [live 3D graph of your memory](docs/VISUALIZER.md) — semantic clusters, a hologram mode, and nodes that pulse in real time as your sessions search and save. One command: `python visualizer/graph_server.py --open`.
+
 ## Quickstart
 
 ```bash
@@ -31,8 +33,9 @@ Or let your agent do it — paste [docs/AGENTIC_SETUP.md](docs/AGENTIC_SETUP.md)
 
 ```
 memory_server/   the memory MCP server (ChromaDB + Obsidian): server.py, storage.py, obsidian.py
+visualizer/      OPTIONAL live 3D memory graph (docs/VISUALIZER.md)
 config/          CLAUDE.md + settings.json (hooks) templates
-docs/            architecture, setup, token efficiency, security
+docs/            architecture, setup, token efficiency, security, visualizer
 install.py       guided installer
 ```
 
@@ -42,6 +45,7 @@ install.py       guided installer
 - **[Setup](docs/SETUP.md)** — manual install (step by step)
 - **[Agentic setup](docs/AGENTIC_SETUP.md)** — let your Claude install it
 - **[Token efficiency](docs/TOKEN_EFFICIENCY.md)** — the 7 techniques that cut token use
+- **[Visualizer](docs/VISUALIZER.md)** — the optional live 3D memory graph (pulses on real activity)
 - **[Security](docs/SECURITY.md)** — scrub checklist before you publish your own setup
 
 ## Requirements
