@@ -42,3 +42,8 @@ graphify-out/
 Thumbs.db
 .idea/
 .vscode/
+
+# machine-local hook artifacts
+PROJECT_BRAIN.md
+graphify-out/
+.code-review-graph/
