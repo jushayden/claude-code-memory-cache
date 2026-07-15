@@ -17,6 +17,8 @@ def create_session_note(session_id: str, project: str = "", topic: str = "") -> 
     """Create a new session note with frontmatter."""
     ensure_sessions_dir()
     path = session_note_path(session_id)
+    if path.exists():
+        return path
 
     now = datetime.now()
     path.write_text(

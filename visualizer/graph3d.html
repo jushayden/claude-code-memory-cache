@@ -81,6 +81,7 @@ const active = new Map(), activeLink = new Map();
 const lkey = (l)=>{ const a=(l.source.id!=null?l.source.id:l.source), b=(l.target.id!=null?l.target.id:l.target); return a<b?a+'|'+b:b+'|'+a; };
 
 let Graph, edgeGeo, edgePos, edgeColors, edgeSeg, bloomPass, lastTick = performance.now();
+let holo = false;   // declared up top: buildEdges() reads it during init
 const EDGE_GREY = [0.13, 0.14, 0.16];       // dark grey (normal mode)
 const EDGE_CYAN = [0.10, 0.42, 0.55];       // electric filaments (hologram mode)
 let EDGE_BASE = EDGE_GREY;
@@ -88,15 +89,23 @@ let EDGE_HL  = [0.22, 0.74, 0.97];          // pulse (cyan; holo -> orange-red)
 
 // ---- all 9k+ edges as ONE GPU object (this is what makes it smooth) ----
 function buildEdges(data){
-  if (edgeSeg) { Graph.scene().remove(edgeSeg); edgeGeo.dispose(); }
+  const oldPos = edgePos;
+  if (edgeSeg) {
+    Graph.scene().remove(edgeSeg);
+    edgeGeo.dispose();
+    edgeSeg.material.dispose();          // leak: one orphaned material per live-add
+  }
   const L = data.links.length;
   edgePos = new Float32Array(L*6);
+  if (oldPos) edgePos.set(oldPos.subarray(0, Math.min(oldPos.length, L*6)));  // no origin-flash
   edgeColors = new Float32Array(L*6);
   edgeGeo = new THREE.BufferGeometry();
   edgeGeo.setAttribute('position', new THREE.BufferAttribute(edgePos, 3));
   edgeGeo.setAttribute('color', new THREE.BufferAttribute(edgeColors, 3));
   edgeSeg = new THREE.LineSegments(edgeGeo,
-    new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.36, fog: false }));
+    new THREE.LineBasicMaterial({ vertexColors: true, transparent: true,
+      opacity: holo ? 0.55 : 0.36,       // rebuilt edges must respect hologram mode
+      blending: holo ? THREE.AdditiveBlending : THREE.NormalBlending, fog: false }));
   edgeSeg.frustumCulled = false;
   edgeSeg.renderOrder = -1;
   Graph.scene().add(edgeSeg);
@@ -325,7 +334,9 @@ gEl.addEventListener('pointermove', e => {
     pinchDist = d;
   }
 }, {passive:true});
-['pointerup','pointercancel','pointerout'].forEach(ev =>
+// pointerout bubbles from overlay panels and killed mid-pinch tracking — only
+// true end-of-touch events may drop a pointer
+['pointerup','pointercancel'].forEach(ev =>
   window.addEventListener(ev, e => { touches.delete(e.pointerId); if (touches.size < 2) pinchDist = 0; }, {passive:true}));
 
 // ---- kiosk zoom buttons: always work, no multitouch required ----
@@ -345,7 +356,6 @@ document.getElementById('spin').onclick = (e) => {
 };
 
 // ---- hologram mode: cyan additive shell, Stark-lab style ----
-let holo = false;
 document.getElementById('holo').onclick = (e) => {
   e.preventDefault();
   if (!Graph) return;
