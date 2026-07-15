@@ -95,8 +95,8 @@ def session_start(project: str = "", topic: str = "") -> str:
         project: The project being worked on
         topic: Brief description of the session topic
     """
-    session_id = datetime.now().strftime("%Y-%m-%d") + (
-        f"-{topic.lower().replace(' ', '-')[:30]}" if topic else "")
+    slug = re.sub(r"[^a-z0-9-]+", "-", topic.lower()).strip("-")[:30] if topic else ""
+    session_id = datetime.now().strftime("%Y-%m-%d") + (f"-{slug}" if slug else "")
     path = create_session_note(session_id, project, topic)
     return f"Session started: {session_id}\nLog: {path}"
 
