@@ -41,8 +41,9 @@ Or let your agent do it — paste [docs/AGENTIC_SETUP.md](docs/AGENTIC_SETUP.md)
 ```
 memory_server/   the memory MCP server (ChromaDB + Obsidian): server.py, storage.py, obsidian.py
 visualizer/      OPTIONAL live 3D memory graph (docs/VISUALIZER.md)
+scripts/         hook helpers (fingerprint_gate.py — skips graph rebuilds on non-structural edits)
 config/          CLAUDE.md + settings.json (hooks) templates
-docs/            architecture, setup, token efficiency, security, visualizer
+docs/            architecture, setup, token efficiency, security, stats, visualizer
 install.py       guided installer
 ```
 

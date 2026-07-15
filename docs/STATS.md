@@ -42,6 +42,9 @@ sessions/day.
 
 Per-edit hook chain (all local compute, zero tokens): code-graph rebuild
 400 ms + graph DB update 379 ms + brain refresh 98 ms ≈ **0.9 s per file edit**.
+Since then, a fingerprint gate (`scripts/fingerprint_gate.py`) skips both graph
+rebuilds when no source file's structure changed — measured **104 ms** for
+markdown/comment/formatting edits, an 8.5× cut on the most common edits.
 Total storage for everything: ~35 MB.
 
 ## The payoff (what it saves)

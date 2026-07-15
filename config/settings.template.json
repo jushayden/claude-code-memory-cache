@@ -23,8 +23,7 @@
       {
         "matcher": "Edit|Write|Bash",
         "hooks": [
-          { "type": "command", "command": "python -c \"from graphify.watch import _rebuild_code; from pathlib import Path; _rebuild_code(Path('.'))\"", "timeout": 30 },
-          { "type": "command", "command": "[ -d .git ] && code-review-graph update --skip-flows 2>/dev/null || true", "timeout": 30 }
+          { "type": "command", "command": "python <MEMORY_CACHE_PATH>/scripts/fingerprint_gate.py 2>/dev/null || true", "timeout": 90 }
         ]
       }
     ],
