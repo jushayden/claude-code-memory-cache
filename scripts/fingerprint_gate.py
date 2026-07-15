@@ -1,15 +1,13 @@
 """Fingerprint gate — skip code-graph rebuilds when code structure didn't change.
 
-Wire this as your PostToolUse hook instead of calling graphify/code-review-graph
-directly (see config/settings.template.json). It reads the hook payload from
-stdin, works out which files the tool touched, fingerprints them (comments and
-whitespace stripped, then hashed), and only runs the expensive graph rebuilds
-when a source file's normalized content actually changed.
+Wire this as your PostToolUse hook instead of calling graphify/code-review-graph directly.
+Reads the hook payload from stdin, works out which files the tool touched,
+fingerprints them (comments + whitespace stripped, then hashed), and only runs
+the expensive graph rebuilds when a source file's normalized content actually
+changed. Editing markdown, tweaking comments, or reformatting costs ~0.1s
+instead of ~0.9s.
 
-Result: editing markdown, tweaking comments, or reformatting costs ~0.1s
-instead of ~0.9s per edit. Measured on a real installation — see docs/STATS.md.
-
-State: JSON per repo under <this repo>/data/fingerprints/ (gitignored).
+State: one JSON per repo under <this repo>/data/fingerprints/ (gitignored).
 Override the location with the FPGATE_STATE environment variable.
 """
 import hashlib
@@ -20,19 +18,24 @@ import subprocess
 import sys
 from pathlib import Path
 
-SOURCE_EXT = {".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"}
+SOURCE_EXT = {".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".lua", ".luau"}
 STATE_DIR = Path(os.environ.get(
     "FPGATE_STATE", str(Path(__file__).resolve().parent.parent / "data" / "fingerprints")))
 MAX_BASH_FILES = 50
 
 _BLOCK = re.compile(r"/\*.*?\*/", re.DOTALL)
-_LINE_JS = re.compile(r"(?<![:\\])//[^\n]*")     # spares URLs (http://...)
+_LINE_JS = re.compile(r"(?<![:\\])//[^\n]*")     # spare URLs (http://...)
 _LINE_PY = re.compile(r"(?m)#[^\n]*$")
+_BLOCK_LUA = re.compile(r"--\[\[.*?\]\]", re.DOTALL)
+_LINE_LUA = re.compile(r"(?m)--[^\n]*$")
 
 
 def normalize(text: str, ext: str) -> str:
     if ext == ".py":
         text = _LINE_PY.sub("", text)
+    elif ext in (".lua", ".luau"):
+        text = _BLOCK_LUA.sub("", text)
+        text = _LINE_LUA.sub("", text)
     else:
         text = _BLOCK.sub("", text)
         text = _LINE_JS.sub("", text)
@@ -45,21 +48,32 @@ def touched_files(payload: dict, cwd: Path):
     ti = payload.get("tool_input") or {}
     if tool in ("Edit", "Write", "NotebookEdit"):
         fp = ti.get("file_path") or ti.get("notebook_path") or ""
-        return [Path(fp)] if fp else []
+        return ([Path(fp)] if fp else []), False
     if tool == "Bash":
         # a shell command may have written anything — ask git what moved
         try:
             r = subprocess.run(["git", "status", "--porcelain"], cwd=str(cwd),
                                capture_output=True, text=True, timeout=8)
-            return [cwd / line[3:].strip().strip('"')
-                    for line in r.stdout.splitlines()[:MAX_BASH_FILES] if line[3:].strip()]
+            out = []
+            for line in r.stdout.splitlines()[:MAX_BASH_FILES]:
+                code, p = line[:2], line[3:].strip().strip('"')
+                if not p:
+                    continue
+                # deletes/renames can't be fingerprinted — force a rebuild if
+                # the affected path looks like source
+                if ("D" in code or "R" in code):
+                    tail = p.split(" -> ")[-1].strip().strip('"')
+                    if Path(tail).suffix.lower() in SOURCE_EXT or \
+                            Path(p.split(" -> ")[0]).suffix.lower() in SOURCE_EXT:
+                        return [cwd / tail], True
+                out.append(cwd / p)
+            return out, False
         except Exception:
-            return []
-    return []
+            return [], False
+    return [], False
 
 
 def rebuild(cwd: Path):
-    """Run whichever graph tools are installed; silently skip the rest."""
     try:
         from graphify.watch import _rebuild_code
         _rebuild_code(cwd)
@@ -81,8 +95,13 @@ def main():
     except Exception:
         payload = {}
 
+    files, force = touched_files(payload, cwd)
+    if force:
+        rebuild(cwd)
+        print("fpgate: source delete/rename — graphs rebuilt")
+        return
     src = []
-    for f in touched_files(payload, cwd):
+    for f in files:
         try:
             f = f.resolve()
             if f.suffix.lower() in SOURCE_EXT and f.is_file() \
