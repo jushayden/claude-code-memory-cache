@@ -15,6 +15,19 @@ mcp = FastMCP("claude-memory")
 client = get_client()
 collection = get_collection(client)
 
+
+def _live_collection():
+    """Return a working collection, transparently reconnecting (which restarts
+    the shared Chroma service if it died) — a mid-session service crash
+    self-heals instead of erroring every tool call for the rest of the session."""
+    global client, collection
+    try:
+        client.heartbeat()
+    except Exception:
+        client = get_client()
+        collection = get_collection(client)
+    return collection
+
 # ---- optional live visualizer (visualizer/graph_server.py, port 8010) ----
 # Fire-and-forget notifications so the graph pulses on real memory activity.
 # If the visualizer isn't running these silently no-op; they never block or raise.
@@ -55,7 +68,7 @@ def memory_search(query: str, n_results: int = 5, project: str = "") -> str:
         n_results: Number of results to return (default 5)
         project: Optional project filter (e.g. "MyApp", "backend")
     """
-    hits = search_sessions(collection, query, n_results, project if project else None)
+    hits = search_sessions(_live_collection(), query, n_results, project if project else None)
     _emit_activity([h.get("id") for h in hits], query)
     if not hits:
         return "No relevant past sessions found."
@@ -82,7 +95,7 @@ def memory_save(text: str, session_id: str, chunk_type: str = "decision",
         tags: Comma-separated tags
     """
     tag_list = [t.strip() for t in tags.split(",") if t.strip()]
-    doc_id = store_chunk(collection, text, session_id, chunk_type, project, tag_list)
+    doc_id = store_chunk(_live_collection(), text, session_id, chunk_type, project, tag_list)
     _emit_add(doc_id, text, chunk_type, project)
     return "Saved to memory: " + doc_id
 
@@ -126,10 +139,11 @@ def session_end(session_id: str, summary: str, decisions: str = "") -> str:
     """
     decision_list = [d.strip() for d in decisions.split("|") if d.strip()]
     append_summary(session_id, summary, decision_list)
+    coll = _live_collection()
     if summary:
-        store_chunk(collection, summary, session_id, "outcome", tags=["session-summary"])
+        store_chunk(coll, summary, session_id, "outcome", tags=["session-summary"])
     for d in decision_list:
-        store_chunk(collection, d, session_id, "decision")
+        store_chunk(coll, d, session_id, "decision")
     return f"Session {session_id} ended and saved."
 
 
@@ -140,7 +154,7 @@ def memory_get_session(session_id: str) -> str:
     Args:
         session_id: The session ID to retrieve
     """
-    chunks = get_session_chunks(collection, session_id)
+    chunks = get_session_chunks(_live_collection(), session_id)
     if not chunks:
         return f"No stored chunks for session {session_id}"
     return "\n\n".join(

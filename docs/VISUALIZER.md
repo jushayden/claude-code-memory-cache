@@ -49,11 +49,11 @@ Don't expose it to the public internet — it has no auth by design (localhost t
 
 ## Concurrency note
 
-ChromaDB allows one writer. The visualizer reads your store once at startup and
-caches a snapshot, which coexists fine with a running memory server in most
-setups — but if you hit locking issues, either run the visualizer while sessions
-are idle, or serve Chroma over HTTP (`chroma run --path <your store>`) and point
-the visualizer at it with `MEMORY_CACHE_CHROMA_HTTP=127.0.0.1:8000`.
+None needed: the memory servers and the visualizer all talk to one shared
+Chroma HTTP service (auto-started by `memory_server/storage.py`), so any number
+of parallel sessions plus the visualizer coexist safely. If you run your own
+Chroma elsewhere, point everything at it with
+`MEMORY_CACHE_CHROMA_HTTP=host:port`.
 
 ## Credits
 

@@ -64,15 +64,11 @@ _ef = None
 
 
 def _chroma_collection():
-    import chromadb
-    http = os.environ.get("MEMORY_CACHE_CHROMA_HTTP", "").strip()
-    if http:
-        host, _, port = http.partition(":")
-        client = chromadb.HttpClient(host=host or "127.0.0.1", port=int(port or 8000))
-    else:
-        client = chromadb.PersistentClient(path=str(CHROMA_DIR))
-    return client.get_or_create_collection(
-        name=SESSION_COLLECTION, metadata={"hnsw:space": "cosine"})
+    # same shared HTTP service the memory servers use (storage auto-starts it,
+    # honors MEMORY_CACHE_CHROMA_HTTP) — never opens the store directly, so the
+    # visualizer can run alongside any number of live sessions
+    from storage import get_client, get_collection
+    return get_collection(get_client())
 
 
 def _embedder():

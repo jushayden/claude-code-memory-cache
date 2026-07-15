@@ -23,3 +23,10 @@ CHROMA_DIR = Path(os.environ.get(
 
 # ChromaDB collection name for session chunks.
 SESSION_COLLECTION = "claude_sessions"
+
+# The shared ChromaDB HTTP service. One service owns the store; every memory
+# server and the visualizer connect as thin HTTP clients, so parallel Claude
+# Code sessions are safe (direct multi-process access segfaults ChromaDB).
+# storage.py auto-starts the service on demand — you rarely touch these.
+CHROMA_HOST = os.environ.get("MEMORY_CACHE_CHROMA_HOST", "127.0.0.1")
+CHROMA_PORT = int(os.environ.get("MEMORY_CACHE_CHROMA_PORT", "8801"))
