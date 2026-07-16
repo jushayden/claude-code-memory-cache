@@ -4,6 +4,18 @@ Measured on one real installation after ~3 months of daily use across ~10
 projects (2–5 sessions/day). Every figure below was measured on the live
 system, not estimated. Token counts are `bytes / 4`.
 
+> **Update (2026-07-15): the efficiency pass.** After these numbers were
+> published, the flagged waste was actually cut — measured again:
+> - **Startup tax: ~26k → ~13.2k tokens/session (−50%)** via a one-line-per-rule
+>   lessons index, 1–2 targeted startup searches (with a mandatory wide-pass
+>   escalation for past-work questions), 500-char search previews
+>   (`full=true` to expand), profile dedupe, and once-per-session nudges.
+> - **The store purge happened: 2,813 → 864 chunks.** The 1,670 bulk-import
+>   summaries and 279 embedded index-file walls are gone; retrieval quality
+>   visibly improved on before/after queries (real decisions now outrank
+>   ancient session stubs). Original noise numbers kept below as the cautionary
+>   tale they are.
+
 ## Headlines
 
 | Metric | Measured |
@@ -86,6 +98,8 @@ issues; post-fix scores were 8.5/10 effectiveness, 7/10 practicality. The waste:
 - **66% of the vector store was noise** — 1,684 of 2,545 chunks were low-signal
   auto-generated session summaries from a bulk import. The valuable 34% does
   nearly all retrieval work. Curate what you embed; don't bulk-import.
+  *(Since purged — see the update at the top. It took three audits flagging it
+  before the cleanup beat new feature work onto the schedule.)*
 - **Killed: manual per-turn session logging** — an automatic transcript hook
   made it pure double-spend.
 - **Killed: re-indexing every session note on every turn** — moved to nightly.
