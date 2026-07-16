@@ -68,17 +68,23 @@ def memory_search(query: str, n_results: int = 5, project: str = "",
         query: What to search for (semantic search)
         n_results: Number of results to return (default 5)
         project: Optional project filter (e.g. "MyApp", "backend")
+        full: Return complete chunk texts (default False = 500-char previews;
+              re-query with full=True when a relevant preview is cut off)
     """
     hits = search_sessions(_live_collection(), query, n_results, project if project else None)
     _emit_activity([h.get("id") for h in hits], query)
     if not hits:
         return "No relevant past sessions found."
-    return "\n\n---\n\n".join(
-        f"[{h['metadata'].get('chunk_type', 'unknown')}] "
-        f"(score {h['score']:.2f}, project {h['metadata'].get('project', 'N/A')}, "
-        f"date {h['metadata'].get('timestamp', 'N/A')[:10]})\n{h['text']}"
-        for h in hits
-    )
+
+    def _snip(h):
+        text = h["text"]
+        if not full and len(text) > 500:
+            text = (text[:500] + f"\n… [truncated — re-search with full=true or "
+                    f"memory_get_session('{h['metadata'].get('session_id', '')}')]")
+        return (f"[{h['metadata'].get('chunk_type', 'unknown')}] "
+                f"(score {h['score']:.2f}, project {h['metadata'].get('project', 'N/A')}, "
+                f"date {h['metadata'].get('timestamp', 'N/A')[:10]})\n{text}")
+    return "\n\n---\n\n".join(_snip(h) for h in hits)
 
 
 @mcp.tool()
