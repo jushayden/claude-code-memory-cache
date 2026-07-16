@@ -15,7 +15,7 @@
 
 Five cooperating memory layers, kept fresh automatically by hooks:
 
-1. **Vector memory** — semantic recall of past sessions (ChromaDB, local, no API cost) → [`memory_server/`](memory_server)
+1. **Vector memory** — hybrid recall of past sessions: semantic search (ChromaDB, local, no API cost) fused with keyword BM25 per query, so exact tokens like error strings and env var names rank as well as paraphrases → [`memory_server/`](memory_server)
 2. **File memory** — a compact `MEMORY.md` index + one-fact-per-file store, read on demand
 3. **Obsidian vault** — session logs, per-project notes, a `Lessons` file, a cross-project `Brain Map`
 4. **Code knowledge graphs** — `graphify` + `code-review-graph`, so Claude queries *structure* instead of grepping files

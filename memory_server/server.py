@@ -9,6 +9,7 @@ from mcp.server.fastmcp import FastMCP
 from storage import (
     get_client, get_collection, store_chunk, search_sessions, get_session_chunks,
 )
+from hybrid import hybrid_search
 from obsidian import create_session_note, append_to_session, append_summary
 
 mcp = FastMCP("claude-memory")
@@ -65,13 +66,14 @@ def memory_search(query: str, n_results: int = 5, project: str = "",
     Use this at the start of a session or when the user references past work.
 
     Args:
-        query: What to search for (semantic search)
+        query: What to search for (hybrid semantic + keyword/BM25 search —
+               exact tokens like error strings and env var names rank well too)
         n_results: Number of results to return (default 5)
         project: Optional project filter (e.g. "MyApp", "backend")
         full: Return complete chunk texts (default False = 500-char previews;
               re-query with full=True when a relevant preview is cut off)
     """
-    hits = search_sessions(_live_collection(), query, n_results, project if project else None)
+    hits = hybrid_search(_live_collection(), query, n_results, project if project else None)
     _emit_activity([h.get("id") for h in hits], query)
     if not hits:
         return "No relevant past sessions found."
@@ -82,7 +84,8 @@ def memory_search(query: str, n_results: int = 5, project: str = "",
             text = (text[:500] + f"\n… [truncated — re-search with full=true or "
                     f"memory_get_session('{h['metadata'].get('session_id', '')}')]")
         return (f"[{h['metadata'].get('chunk_type', 'unknown')}] "
-                f"(score {h['score']:.2f}, project {h['metadata'].get('project', 'N/A')}, "
+                f"(score {h['score']:.2f}, match {h.get('match', 'vector')}, "
+                f"project {h['metadata'].get('project', 'N/A')}, "
                 f"date {h['metadata'].get('timestamp', 'N/A')[:10]})\n{text}")
     return "\n\n---\n\n".join(_snip(h) for h in hits)
 
