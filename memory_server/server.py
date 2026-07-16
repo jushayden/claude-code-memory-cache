@@ -59,7 +59,8 @@ def _emit_add(doc_id, text, chunk_type, project):
 
 
 @mcp.tool()
-def memory_search(query: str, n_results: int = 5, project: str = "") -> str:
+def memory_search(query: str, n_results: int = 5, project: str = "",
+                  full: bool = False) -> str:
     """Search past Claude session history for relevant context.
     Use this at the start of a session or when the user references past work.
 

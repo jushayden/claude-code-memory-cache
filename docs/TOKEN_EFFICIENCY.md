@@ -139,3 +139,15 @@ Add this block to your project or global `CLAUDE.md` so the agent actually *uses
 7. Set up the memory layout: `MEMORY.md` index + `memory/` fact files + the vector store.
 
 That's it. After this, the standing context stays lean (names + a compact index + rules), and the heavy stuff — tool schemas, file contents, code structure, memory — is pulled just-in-time and discarded, instead of riding along in every turn.
+
+## Field-tested additions (from the reference installation)
+
+- **Index your lessons file.** Inject a one-line-per-rule index (~⅓ the tokens);
+  read a lesson's full context only when its rule is relevant. (`scripts/` on the
+  reference install generates it nightly.)
+- **Truncate search results to previews.** `memory_search` returns 500-char
+  previews by default with a `full=true` escape hatch — cuts every search ~4×.
+- **Fire context nudges once per session, not per tool call.**
+- **Curate the store; never bulk-import.** A bulk transcript import once grew the
+  reference store to 60% noise and measurably degraded retrieval; the purge halved
+  startup search costs and fixed result quality.
