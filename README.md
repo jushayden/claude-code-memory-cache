@@ -6,8 +6,8 @@
 
 **Persistent, token-efficient memory for Claude Code.** Give the agent a memory that survives across sessions, projects, and machines — a "cache" for everything it should remember between runs, so it stops forgetting what you told it last week and stops re-reading your whole codebase to answer *"where is X used?"*
 
-![The live 3D memory graph — every node is a memory, clustered by meaning, pulsing in real time as sessions search and save](docs/assets/memory-graph.png)
-*The optional [live 3D memory graph](docs/VISUALIZER.md), shown here on one real installation after ~3 months of use. Every node is one of **your** memories — the graph starts empty and grows as your sessions save them, clustered by meaning and pulsing as sessions think. Measured results from the same installation: [docs/STATS.md](docs/STATS.md).*
+![The live memory graph — every node is a memory, clustered by meaning, pulsing in real time as sessions search and save](docs/assets/memory-graph.png)
+*The optional [live memory graph](docs/VISUALIZER.md) (2D view shown; a full 3D mode with hologram effects is one click away), from one real installation after ~3 months of use. Every node is one of **your** memories — the graph starts empty and grows as your sessions save them, clustered by meaning and pulsing as sessions think. Measured results from the same installation: [docs/STATS.md](docs/STATS.md).*
 
 > ⚠️ Unofficial. Not affiliated with Anthropic. "Claude" is a trademark of Anthropic; this is an independent community project.
 
