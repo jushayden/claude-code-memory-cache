@@ -81,8 +81,12 @@ def memory_search(query: str, n_results: int = 5, project: str = "",
     def _snip(h):
         text = h["text"]
         if not full and len(text) > 500:
-            text = (text[:500] + f"\n… [truncated — re-search with full=true or "
+            candidate = (text[:500] + f"\n… [truncated — re-search with full=true or "
                     f"memory_get_session('{h['metadata'].get('session_id', '')}')]")
+            # inflation guard: only shorten if the preview+hint actually saves space
+            # (a chunk just over 500 chars can inflate once the hint is appended)
+            if len(candidate) < len(text):
+                text = candidate
         return (f"[{h['metadata'].get('chunk_type', 'unknown')}] "
                 f"(score {h['score']:.2f}, match {h.get('match', 'vector')}, "
                 f"project {h['metadata'].get('project', 'N/A')}, "
