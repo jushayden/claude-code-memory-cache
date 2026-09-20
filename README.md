@@ -80,6 +80,7 @@ install.py       guided installer
 - **[Architecture](docs/ARCHITECTURE.md)** — the diagram, the five layers in plain English, the hooks, and a glossary
 - **[Setup](docs/SETUP.md)** — manual install, step by step
 - **[Agentic setup](docs/AGENTIC_SETUP.md)** — let your Claude install it
+- **[Codex setup](docs/CODEX_SETUP.md)** — wire Codex into the same store, so both tools share one memory
 - **[Real numbers](docs/STATS.md)** — measured costs, savings, and an honest list of what turned out useless
 - **[Token efficiency](docs/TOKEN_EFFICIENCY.md)** — the techniques that cut token use
 - **[Visualizer](docs/VISUALIZER.md)** — the optional live memory graph

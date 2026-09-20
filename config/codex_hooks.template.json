@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{PYTHON}} {{REPO}}/scripts/codex_hook_shim.py --post",
+            "statusMessage": "Refreshing code graph"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{PYTHON}} {{REPO}}/memory_server/codex_rollout_ingest.py",
+            "statusMessage": "Logging session to vault"
+          }
+        ]
+      }
+    ]
+  }
+}
