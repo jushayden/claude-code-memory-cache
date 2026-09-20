@@ -91,13 +91,23 @@ installer.
 
 ## What each hook is for
 
-| Event | Runs | Why |
-|---|---|---|
-| `PostToolUse` | `scripts/codex_hook_shim.py --post` | Refreshes the code graph, skipping non-structural edits via `fingerprint_gate.py` |
-| `SessionEnd` | `memory_server/codex_rollout_ingest.py` | Writes the transcript into the vault and the vector store |
+These mirror what `config/settings.template.json` wires on the Claude Code side, so both tools keep
+the same things fresh.
 
-`SessionEnd` is the one that makes memory work. `PostToolUse` keeps the code graph current and is
-optional.
+| Event | Runs | Claude Code equivalent |
+|---|---|---|
+| `SessionStart` | `code-review-graph status` | same |
+| `PostToolUse` | `scripts/codex_hook_shim.py --post` | `scripts/fingerprint_gate.py` |
+| `SessionEnd` | `memory_server/codex_rollout_ingest.py` | `Stop` -> `memory_server/auto_log_from_jsonl.py` |
+
+`SessionEnd` is the one that makes memory work: without it a Codex session leaves no transcript and
+Claude sessions can never see what you did. `PostToolUse` keeps the code graph current.
+`SessionStart` reports whether the graph is stale.
+
+One Claude-side hook has no Codex equivalent here. Its `PreToolUse` injects a line of context
+telling the agent to read the code graph before grepping. Codex's hook output schema for adding
+context is not the same shape, so wiring it blind would parse fine and do nothing. Left out
+deliberately rather than shipped broken.
 
 The shim exists because Codex and Claude Code pass hook payloads with different field names. It
 translates, calls the script unchanged, and translates the result back.

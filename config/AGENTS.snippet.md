@@ -58,6 +58,7 @@ unreachable.
 
 You run hooks through `~/.codex/hooks.json`:
 
+- `SessionStart` reports whether this repo's code graph is stale.
 - `PostToolUse` rebuilds the code graph in git repos, skipping non-structural edits.
 - `SessionEnd` writes your transcript into the shared session-log folder.
 
