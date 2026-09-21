@@ -170,8 +170,8 @@ watching in case Codex starts writing memories the shared store never sees.
 
 **Transcripts are tagged with a project name.** The ingester matches the session working directory
 against `memory_server/data/project_map.json`, longest key first. That file is gitignored, so the
-repo ships nobody's directory layout. Without it, the ingester falls back to the working directory's
-name, which is usually good enough.
+repo ships nobody's directory layout: copy `config/project_map.example.json` to create it. Without
+it, the ingester falls back to the working directory's name, which is usually good enough.
 
 ## Also do this
 

@@ -46,9 +46,10 @@ PROJECT_MAP_FILE = Path(os.getenv("PROJECT_MAP_FILE", REPO / "data" / "project_m
 def load_project_map() -> list:
     """Longest-prefix-first list of (cwd fragment, project name).
 
-    Lives outside the repo because it is a map of one person's directories.
-    See project_map.example.json. Missing file means fall back to the
-    directory name, which is right often enough.
+    Gitignored, because it is a map of one person's directories. Copy
+    config/project_map.example.json to memory_server/data/project_map.json to
+    use it. Missing file means fall back to the directory name, which is right
+    often enough.
     """
     try:
         pairs = json.loads(PROJECT_MAP_FILE.read_text(encoding="utf-8"))

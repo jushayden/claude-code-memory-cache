@@ -1,0 +1,7 @@
+{
+  "_README": "Optional. Maps a session's working directory onto a project name, so transcripts get tagged consistently instead of taking the folder's name. Copy to memory_server/data/project_map.json (gitignored) and edit. Keys are matched case-insensitively as substrings of the working directory, longest key first, so put the more specific path above the general one. Without this file the ingester falls back to the directory name, which is usually fine.",
+
+  "c:/work/acme/frontend": "Acme Web",
+  "c:/work/acme": "Acme",
+  "/home/you/projects/my-app": "My App"
+}

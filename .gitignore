@@ -19,6 +19,12 @@ chromadb*/
 memory/            # per-project fact files are personal; ship examples only
 hook_state.json
 
+# Your own config, made by copying memory_server/config.example.py.
+# It holds the real path to your vault, so it must never be committed.
+memory_server/config.py
+config.py
+!memory_server/config.example.py
+
 # ── Python ─────────────────────────────────────────────
 __pycache__/
 *.py[cod]

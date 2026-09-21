@@ -1,0 +1,9 @@
+# Memory server deps.
+#   chromadb  the vector store behind memory_search / memory_save
+#   mcp       the MCP server that exposes those tools to Claude Code and Codex
+#
+# The optional live graph has its own file: requirements-visualizer.txt
+# graphify and code-review-graph are separate tools, installed on their own:
+#   pip install graphify code-review-graph
+chromadb
+mcp
