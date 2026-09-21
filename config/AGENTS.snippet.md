@@ -41,6 +41,12 @@ off.
 If memory is still thin, glob the vault's session-log folder for matching notes before saying you
 lack context. "Not enough info" is almost always a failure to search widely enough.
 
+### Prefer the code graph over grepping
+
+If `graphify-out/` exists in the project, read `graphify-out/GRAPH_REPORT.md` before searching raw
+files. It gives you callers, dependents and structure for far fewer tokens than grep does. Claude
+Code gets this as an automatic reminder on every search; you have to remember it yourself.
+
 ### Saving memory
 
 Call `memory_save` after decisions, architectural choices, learnings, and stated preferences. Skip
