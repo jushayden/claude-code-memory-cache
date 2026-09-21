@@ -1,9 +1,15 @@
 # Memory server deps.
-#   chromadb  the vector store behind memory_search / memory_save
-#   mcp       the MCP server that exposes those tools to Claude Code and Codex
+#
+#   chromadb  the vector store behind memory_search / memory_save.
+#             1.x or newer: chroma_service.py drives the server through
+#             chromadb_rust_bindings, which 0.x does not have, and storage.py
+#             talks to it over the v2 HTTP API.
+#
+#   mcp       the MCP server that exposes those tools to Claude Code and Codex.
+#             1.x or newer, for mcp.server.fastmcp.FastMCP.
 #
 # The optional live graph has its own file: requirements-visualizer.txt
 # graphify and code-review-graph are separate tools, installed on their own:
 #   pip install graphify code-review-graph
-chromadb
-mcp
+chromadb>=1.0
+mcp>=1.0
