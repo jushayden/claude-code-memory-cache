@@ -12,6 +12,17 @@
         ]
       }
     ],
+    "PreToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{PYTHON}} {{REPO}}/scripts/codex_graph_hint.py"
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": ".*",
@@ -20,6 +31,10 @@
             "type": "command",
             "command": "{{PYTHON}} {{REPO}}/scripts/codex_hook_shim.py --post",
             "statusMessage": "Refreshing code graph"
+          },
+          {
+            "type": "command",
+            "command": "{{PYTHON}} {{REPO}}/memory_server/codex_rollout_ingest.py"
           }
         ]
       }

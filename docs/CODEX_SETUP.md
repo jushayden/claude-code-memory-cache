@@ -97,17 +97,25 @@ the same things fresh.
 | Event | Runs | Claude Code equivalent |
 |---|---|---|
 | `SessionStart` | `code-review-graph status` | same |
+| `PreToolUse` | `scripts/codex_graph_hint.py` | inline shell conditional |
 | `PostToolUse` | `scripts/codex_hook_shim.py --post` | `scripts/fingerprint_gate.py` |
-| `SessionEnd` | `memory_server/codex_rollout_ingest.py` | `Stop` -> `memory_server/auto_log_from_jsonl.py` |
+| `PostToolUse` | `memory_server/codex_rollout_ingest.py` | `Stop` -> `memory_server/auto_log_from_jsonl.py` |
+| `SessionEnd` | `memory_server/codex_rollout_ingest.py` | as above |
 
-`SessionEnd` is the one that makes memory work: without it a Codex session leaves no transcript and
-Claude sessions can never see what you did. `PostToolUse` keeps the code graph current.
-`SessionStart` reports whether the graph is stale.
+`codex_rollout_ingest.py` is the one that makes memory work: without it a Codex session leaves no
+transcript and Claude sessions can never see what you did.
 
-One Claude-side hook has no Codex equivalent here. Its `PreToolUse` injects a line of context
-telling the agent to read the code graph before grepping. Codex's hook output schema for adding
-context is not the same shape, so wiring it blind would parse fine and do nothing. Left out
-deliberately rather than shipped broken.
+It runs on **both** `PostToolUse` and `SessionEnd`, and that is deliberate. Claude Code logs after
+every turn via its `Stop` hook. Codex has no per-turn event, so `SessionEnd` alone would mean a
+session that crashes or is killed writes nothing at all. Running it on `PostToolUse` as well flushes
+the transcript continuously. It is incremental, seeking to a stored byte offset per rollout file, so
+a call with nothing new to read costs on the order of 50ms.
+
+`scripts/codex_graph_hint.py` is the cross-platform version of the inline shell conditional Claude
+Code uses. It tells the agent to read the code graph before grepping raw files. Whether Codex
+honours `additionalContext` is not confirmed; if it does not, the hook is a harmless no-op and the
+same instruction is carried by `config/AGENTS.snippet.md`, which is the mechanism that definitely
+works.
 
 The shim exists because Codex and Claude Code pass hook payloads with different field names. It
 translates, calls the script unchanged, and translates the result back.
